@@ -1,11 +1,11 @@
-#include <opendxa/cli/common.h>
-#include <opendxa/wrappers/atomic_strain.h>
+#include <volt/cli/common.h>
+#include <volt/atomic_strain_service.h>
 
-using namespace OpenDXA;
-using namespace OpenDXA::CLI;
+using namespace Volt;
+using namespace Volt::CLI;
 
 void showUsage(const std::string& name) {
-    printUsageHeader(name, "OpenDXA - Atomic Strain Analysis");
+    printUsageHeader(name, "Volt - Atomic Strain Analysis");
     std::cerr
         << "  --cutoff <float>              Cutoff radius for neighbor search. [default: 3.0]\n"
         << "  --reference <file>            Reference LAMMPS dump file.\n"
@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
     }
     
     auto parallel = initParallelism(opts, false);
-    initLogging("opendxa-atomic-strain", parallel.threads);
+    initLogging("volt-atomic-strain", parallel.threads);
     
     LammpsParser::Frame frame;
     if (!parseFrame(filename, frame)) return 1;
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
     outputBase = deriveOutputBase(filename, outputBase);
     spdlog::info("Output base: {}", outputBase);
     
-    AtomicStrainWrapper analyzer;
+    AtomicStrainService analyzer;
     analyzer.setCutoff(getDouble(opts, "--cutoff", 3.0));
     
     if (hasReference) {

@@ -1,12 +1,12 @@
-#include <opendxa/analysis/atomic_strain.h>
-#include <opendxa/analysis/cutoff_neighbor_finder.h>
+#include <volt/atomic_strain_engine.h>
+#include <volt/analysis/cutoff_neighbor_finder.h>
 
 #include <cmath>
 #include <numeric>
 #include <map>
 #include <cassert>
 
-namespace OpenDXA{
+namespace Volt{
 
 using namespace Particles;
 

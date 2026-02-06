@@ -1,13 +1,15 @@
-#include <opendxa/wrappers/atomic_strain.h>
-#include <opendxa/analysis/atomic_strain.h>
-#include <opendxa/utilities/concurrence/parallel_system.h>
+#include <volt/atomic_strain_service.h>
+#include <volt/atomic_strain_engine.h>
+#include <volt/core/frame_adapter.h>
+#include <volt/core/analysis_result.h>
+#include <volt/utilities/concurrence/parallel_system.h>
 #include <spdlog/spdlog.h>
 
-namespace OpenDXA{
+namespace Volt{
 
-using namespace OpenDXA::Particles;
+using namespace Volt::Particles;
 
-AtomicStrainWrapper::AtomicStrainWrapper()
+AtomicStrainService::AtomicStrainService()
     : _cutoff(0.10),
       _eliminateCellDeformation(false),
       _assumeUnwrappedCoordinates(false),
@@ -17,16 +19,16 @@ AtomicStrainWrapper::AtomicStrainWrapper()
       _hasReference(false){}
 
 
-void AtomicStrainWrapper::setCutoff(double cutoff){
+void AtomicStrainService::setCutoff(double cutoff){
     _cutoff = cutoff;
 }
 
-void AtomicStrainWrapper::setReferenceFrame(const LammpsParser::Frame &ref){
+void AtomicStrainService::setReferenceFrame(const LammpsParser::Frame &ref){
     _referenceFrame = ref;
     _hasReference = true;
 }
 
-void AtomicStrainWrapper::setOptions(
+void AtomicStrainService::setOptions(
     bool eliminateCellDeformation,
     bool assumeUnwrappedCoordinates,
     bool calculateDeformationGradient,
@@ -40,36 +42,12 @@ void AtomicStrainWrapper::setOptions(
     _calculateD2min = calculateD2min;
 }
 
-std::shared_ptr<ParticleProperty> AtomicStrainWrapper::createPositionProperty(const LammpsParser::Frame &frame){
-    std::shared_ptr<ParticleProperty> property(new ParticleProperty(frame.natoms, ParticleProperty::PositionProperty, 0, true));
-
-    if(!property || property->size() != frame.natoms){
-        spdlog::error("Failed to allocate ParticleProperty for positions with correct size");
-        return nullptr;
-    }
-
-    Point3* data = property->dataPoint3();
-    if(!data){
-        spdlog::error("Failed to get position data pointer from ParticleProperty");
-        return nullptr;  
-    }
-
-    for(size_t i = 0; i < frame.positions.size() && i < static_cast<size_t>(frame.natoms); i++){
-        data[i] = frame.positions[i];
-    }
-
-    return property;
-}
-
-json AtomicStrainWrapper::compute(const LammpsParser::Frame& currentFrame, const std::string &outputFilename){
+json AtomicStrainService::compute(const LammpsParser::Frame& currentFrame, const std::string &outputFilename){
     const LammpsParser::Frame &refFrame = _hasReference ? _referenceFrame : currentFrame;
 
-    auto positions = createPositionProperty(currentFrame);
+    auto positions = FrameAdapter::createPositionProperty(currentFrame);
     if(!positions){
-        json res;
-        res["is_failed"] = true;
-        res["error"] = "Failed to create position property";
-        return res;
+        return AnalysisResult::failure("Failed to create position property");
     }
 
     json result = computeAtomicStrain(currentFrame, refFrame, positions.get(), outputFilename);
@@ -77,7 +55,7 @@ json AtomicStrainWrapper::compute(const LammpsParser::Frame& currentFrame, const
     return result;
 }
 
-json AtomicStrainWrapper::computeAtomicStrain(
+json AtomicStrainService::computeAtomicStrain(
     const LammpsParser::Frame& currentFrame,
     const LammpsParser::Frame& refFrame,
     ParticleProperty* positions,
@@ -98,24 +76,8 @@ json AtomicStrainWrapper::computeAtomicStrain(
         refPositions->setPoint3(i, refFrame.positions[i]);
     }
 
-    auto identifiers = std::make_shared<ParticleProperty>(
-        currentFrame.ids.size(),
-        ParticleProperty::IdentifierProperty,
-        1,
-        false
-    );
-
-    auto refIdentifiers = std::make_shared<ParticleProperty>(
-        refFrame.ids.size(),
-        ParticleProperty::IdentifierProperty,
-        1,
-        false
-    );
-
-    for(std::size_t i = 0; i < currentFrame.ids.size(); i++){
-        identifiers->setInt(i, currentFrame.ids[i]);
-        refIdentifiers->setInt(i, refFrame.ids[i]);
-    }
+    auto identifiers = FrameAdapter::createIdentifierProperty(currentFrame);
+    auto refIdentifiers = FrameAdapter::createIdentifierProperty(refFrame);
 
     AtomicStrainModifier::AtomicStrainEngine engine(
         positions,
