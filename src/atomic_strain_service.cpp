@@ -45,7 +45,7 @@ void AtomicStrainService::setOptions(
 json AtomicStrainService::compute(const LammpsParser::Frame& currentFrame, const std::string &outputFilename){
     const LammpsParser::Frame &refFrame = _hasReference ? _referenceFrame : currentFrame;
 
-    auto positions = FrameAdapter::createPositionProperty(currentFrame);
+    auto positions = FrameAdapter::createPositionPropertyShared(currentFrame);
     if(!positions){
         return AnalysisResult::failure("Failed to create position property");
     }
@@ -65,16 +65,7 @@ json AtomicStrainService::computeAtomicStrain(
         throw std::runtime_error("Cannot calculate atomic strain. Number of atoms in current and reference frames does not match.");
     }
 
-    auto refPositions = std::make_shared<ParticleProperty>(
-        refFrame.positions.size(),
-        ParticleProperty::PositionProperty,
-        3,
-        false
-    );
-
-    for(std::size_t i = 0; i < refFrame.positions.size(); i++){
-        refPositions->setPoint3(i, refFrame.positions[i]);
-    }
+    auto refPositions = FrameAdapter::createPositionPropertyShared(refFrame);
 
     auto identifiers = FrameAdapter::createIdentifierProperty(currentFrame);
     auto refIdentifiers = FrameAdapter::createIdentifierProperty(refFrame);

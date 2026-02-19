@@ -5,6 +5,8 @@
 #include <numeric>
 #include <map>
 #include <cassert>
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range.h>
 
 namespace Volt{
 
@@ -114,15 +116,17 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
         _nonaffineSquaredDisplacements.reset();
     }
 
-    #pragma omp parallel for schedule(dynamic)
-    for(long long i = 0; i < static_cast<long long>(n); ++i){
-        if(!computeStrain(static_cast<std::size_t>(i),
-                          neighborFinder,
-                          refToCurrentIndexMap,
-                          currentToRefIndexMap)){
-            _numInvalidParticles.fetch_add(1, std::memory_order_relaxed);
-        }
-    }
+    tbb::parallel_for(tbb::blocked_range<std::size_t>(0, n),
+        [this, &neighborFinder, &refToCurrentIndexMap, &currentToRefIndexMap](const tbb::blocked_range<std::size_t>& r){
+            for(std::size_t i = r.begin(); i < r.end(); ++i){
+                if(!computeStrain(i,
+                                  neighborFinder,
+                                  refToCurrentIndexMap,
+                                  currentToRefIndexMap)){
+                    _numInvalidParticles.fetch_add(1, std::memory_order_relaxed);
+                }
+            }
+        });
 }
 
 bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
