@@ -3,6 +3,7 @@
 #include <volt/core/frame_adapter.h>
 #include <volt/core/analysis_result.h>
 #include <volt/utilities/concurrence/parallel_system.h>
+#include <volt/utilities/json_utils.h>
 #include <spdlog/spdlog.h>
 
 namespace Volt{
@@ -119,10 +120,6 @@ json AtomicStrainService::computeAtomicStrain(
         { "max_shear_strain", maxShear }
     };
 
-    if(!outputFilename.empty()){
-        // TODO: Implement msgpack export in standalone package
-        spdlog::warn("File output not yet implemented in standalone package. Returning inline JSON data.");
-    }
     {
         root["atomic_strain"] = json::array();
         auto strainProp = engine.strainTensors();
@@ -173,6 +170,15 @@ json AtomicStrainService::computeAtomicStrain(
             }
 
             root["atomic_strain"].push_back(a);
+        }
+    }
+
+    if(!outputFilename.empty()){
+        const std::string outputPath = outputFilename + "_atomic_strain.msgpack";
+        if(JsonUtils::writeJsonMsgpackToFile(root, outputPath, false)){
+            spdlog::info("Atomic strain msgpack written to {}", outputPath);
+        }else{
+            spdlog::warn("Could not write atomic strain msgpack: {}", outputPath);
         }
     }
 
