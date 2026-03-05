@@ -35,7 +35,6 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel Re
 find_package(coretoolkit REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(fmt REQUIRED)
 
 # Collect all library sources (exclude main.cpp)
 file(GLOB LIB_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
@@ -48,7 +47,6 @@ target_precompile_headers(${PROJECT_NAME}_lib PRIVATE <volt/core/volt.h>)
 target_link_libraries(${PROJECT_NAME}_lib PUBLIC 
     coretoolkit::coretoolkit 
     spdlog::spdlog
-    fmt::fmt
 )
 set_target_properties(${PROJECT_NAME}_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
@@ -60,7 +58,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${PROJECT_NAME}_lib 
     coretoolkit::coretoolkit
     spdlog::spdlog
-    fmt::fmt
     nlohmann_json::nlohmann_json
 )
 
