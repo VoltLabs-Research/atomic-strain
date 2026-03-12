@@ -9,6 +9,7 @@ class AtomicStrainConan(ConanFile):
     license = "MIT"
     settings = "os", "arch", "compiler", "build_type"
     requires = (
+        "boost/1.88.0",
         "coretoolkit/1.0.0",
         "nlohmann_json/3.11.3",
         "spdlog/1.14.1",
@@ -35,6 +36,7 @@ class AtomicStrainConan(ConanFile):
         self.cpp_info.set_property("cmake_target_name", "atomic-strain::atomic-strain")
         self.cpp_info.libs = ["atomic-strain_lib"]
         self.cpp_info.requires = [
+            "boost::headers",
             "coretoolkit::coretoolkit",
             "nlohmann_json::nlohmann_json",
             "spdlog::spdlog",
