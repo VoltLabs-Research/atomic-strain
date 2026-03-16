@@ -33,6 +33,7 @@ set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 
 find_package(coretoolkit REQUIRED)
+find_package(TBB REQUIRED)
 find_package(Boost REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(spdlog REQUIRED)
@@ -60,6 +61,7 @@ target_include_directories(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/includ
 target_precompile_headers(${PROJECT_NAME}_lib PRIVATE <volt/core/volt.h>)
 target_link_libraries(${PROJECT_NAME}_lib PUBLIC 
     ${ATOMIC_STRAIN_BOOST_TARGET}
+    TBB::tbb
     coretoolkit::coretoolkit 
     spdlog::spdlog
 )
@@ -72,6 +74,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE <volt/core/volt.h>)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     ${PROJECT_NAME}_lib 
     ${ATOMIC_STRAIN_BOOST_TARGET}
+    TBB::tbb
     coretoolkit::coretoolkit
     spdlog::spdlog
     nlohmann_json::nlohmann_json
