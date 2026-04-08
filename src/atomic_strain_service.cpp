@@ -2,7 +2,6 @@
 #include <volt/atomic_strain_engine.h>
 #include <volt/core/frame_adapter.h>
 #include <volt/core/analysis_result.h>
-#include <volt/utilities/concurrence/parallel_system.h>
 #include <volt/utilities/json_utils.h>
 #include <spdlog/spdlog.h>
 

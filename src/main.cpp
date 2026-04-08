@@ -1,5 +1,6 @@
 #include <volt/cli/common.h>
 #include <volt/atomic_strain_service.h>
+#include <oneapi/tbb/global_control.h>
 
 using namespace Volt;
 using namespace Volt::CLI;
@@ -33,8 +34,15 @@ int main(int argc, char* argv[]) {
         return filename.empty() ? 1 : 0;
     }
     
-    auto parallel = initParallelism(opts, false);
-    initLogging("volt-atomic-strain", parallel.threads);
+    const int requestedThreads = std::max(1, getInt(opts, "--threads", std::thread::hardware_concurrency() > 0
+        ? static_cast<int>(std::thread::hardware_concurrency())
+        : 1));
+    oneapi::tbb::global_control parallelControl(
+        oneapi::tbb::global_control::max_allowed_parallelism,
+        static_cast<std::size_t>(requestedThreads)
+    );
+    initLogging("volt-atomic-strain");
+    spdlog::info("Using {} threads (OneTBB)", requestedThreads);
     
     LammpsParser::Frame frame;
     if (!parseFrame(filename, frame)) return 1;
