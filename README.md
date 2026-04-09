@@ -2,6 +2,12 @@
 
 `AtomicStrain` computes atomic strain metrics from a current frame and an optional reference frame.
 
+## One-Command Install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/VoltLabs-Research/CoreToolkit/main/scripts/install-plugin.sh | bash -s -- AtomicStrain
+```
+
 ## CLI
 
 Usage:
@@ -25,13 +31,3 @@ atomic-strain <lammps_file> [output_base] [options]
 | `--calcD2min` | No | Compute `D²min`. | `true` |
 | `--threads <int>` | No | Maximum worker threads. | auto |
 | `--help` | No | Print CLI help. | |
-
-## Build With CoreToolkit
-
-```bash
-cd /path/to/voltlabs-ecosystem/tools/CoreToolkit
-conan create . -nr
-
-cd /path/to/voltlabs-ecosystem/plugins/AtomicStrain
-conan create . -nr
-```
