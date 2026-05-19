@@ -169,6 +169,91 @@ json AtomicStrainService::computeAtomicStrain(
         }else{
             spdlog::warn("Could not write atomic strain msgpack: {}", outputPath);
         }
+
+        // --- atoms.msgpack (AtomisticExporter) ---
+        // Canonical per-atom envelope grouped by "valid"/"invalid" so the
+        // Volt viewport can render the strain-annotated atoms. Mirrors
+        // OVITO's AtomicStrainModifier which publishes a SelectionProperty
+        // for invalid particles plus StrainTensor / DeformationGradient /
+        // D2min user properties.
+        json atomsByBucket = json::object();
+        json validAtoms = json::array();
+        json invalidAtoms = json::array();
+        int validCount = 0;
+        int invalidCount = 0;
+        for(std::size_t i = 0; i < n; i++){
+            const Point3& pos = currentFrame.positions[i];
+            const bool isInvalid = invalid ? (invalid->getInt(i) != 0) : false;
+            const int structureId = isInvalid ? 1 : 0;
+            const char* structureName = isInvalid ? "INVALID" : "VALID";
+            json atom = {
+                {"id", currentFrame.ids[i]},
+                {"pos", {pos.x(), pos.y(), pos.z()}},
+                {"structure_id", structureId},
+                {"structure_name", structureName},
+                {"cluster_id", 0},
+                {"shear_strain", shear ? shear->getDouble(i) : 0.0},
+                {"volumetric_strain", volumetric ? volumetric->getDouble(i) : 0.0},
+                {"invalid", isInvalid}
+            };
+            if(strainProp){
+                atom["strain_tensor"] = {
+                    strainProp->getDoubleComponent(i, 0),
+                    strainProp->getDoubleComponent(i, 1),
+                    strainProp->getDoubleComponent(i, 2),
+                    strainProp->getDoubleComponent(i, 5),
+                    strainProp->getDoubleComponent(i, 4),
+                    strainProp->getDoubleComponent(i, 3)
+                };
+            }
+            if(defgrad){
+                json grad = json::array();
+                for(int c = 0; c < 9; c++)
+                    grad.push_back(defgrad->getDoubleComponent(i, c));
+                atom["deformation_gradient"] = grad;
+            }
+            if(D2minProp){
+                atom["D2min"] = D2minProp->getDouble(i);
+            }
+            if(isInvalid){
+                invalidAtoms.push_back(std::move(atom));
+                ++invalidCount;
+            }else{
+                validAtoms.push_back(std::move(atom));
+                ++validCount;
+            }
+        }
+        if(validCount > 0) atomsByBucket["VALID"] = std::move(validAtoms);
+        if(invalidCount > 0) atomsByBucket["INVALID"] = std::move(invalidAtoms);
+
+        json structuresListing = json::array();
+        if(validCount > 0){
+            structuresListing.push_back({
+                {"structure_id", 0}, {"structure_name", "VALID"}, {"atom_count", validCount}
+            });
+        }
+        if(invalidCount > 0){
+            structuresListing.push_back({
+                {"structure_id", 1}, {"structure_name", "INVALID"}, {"atom_count", invalidCount}
+            });
+        }
+
+        json exportWrapper;
+        exportWrapper["main_listing"] = {
+            {"total_atoms", static_cast<int>(n)},
+            {"structure_count", static_cast<int>(structuresListing.size())},
+            {"valid_atoms", validCount},
+            {"invalid_atoms", invalidCount}
+        };
+        exportWrapper["sub_listings"] = { {"structures", structuresListing} };
+        exportWrapper["export"] = json::object();
+        exportWrapper["export"]["AtomisticExporter"] = atomsByBucket;
+        const std::string atomsPath = outputFilename + "_atoms.msgpack";
+        if(JsonUtils::writeJsonMsgpackToFile(exportWrapper, atomsPath, false)){
+            spdlog::info("Exported atoms data to: {}", atomsPath);
+        }else{
+            spdlog::warn("Could not write atoms msgpack: {}", atomsPath);
+        }
     }
 
     return root;
