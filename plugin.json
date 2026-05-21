@@ -45,31 +45,31 @@
                 "step": 0.1
               },
               {
-                "argument": "eliminateCellDeformation",
+                "argument": "eliminate_cell_deformation",
                 "type": "boolean",
                 "label": "Eliminate Cell Deformation",
                 "default": false
               },
               {
-                "argument": "assumeUnwrapped",
+                "argument": "assume_unwrapped",
                 "type": "boolean",
                 "label": "Assume Unwrapped",
                 "default": false
               },
               {
-                "argument": "calcDeformationGradient",
+                "argument": "calc_deformation_gradient",
                 "type": "boolean",
                 "label": "Calc Deformation Gradient",
                 "default": true
               },
               {
-                "argument": "calcStrainTensors",
+                "argument": "calc_strain_tensors",
                 "type": "boolean",
                 "label": "Calc Strain Tensors",
                 "default": true
               },
               {
-                "argument": "calcD2min",
+                "argument": "calc_d2min",
                 "type": "boolean",
                 "label": "Calc D2min",
                 "default": true
