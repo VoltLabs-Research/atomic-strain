@@ -11,11 +11,11 @@ void showUsage(const std::string& name) {
         << "  --cutoff <float>              Cutoff radius for neighbor search. [default: 3.0]\n"
         << "  --reference <file>            Reference LAMMPS dump file.\n"
         << "                                If omitted, current frame is used (≈ zero strain).\n"
-        << "  --eliminateCellDeformation    Eliminate cell deformation. [default: false]\n"
-        << "  --assumeUnwrapped             Assume unwrapped coordinates. [default: false]\n"
-        << "  --calcDeformationGradient     Compute deformation gradient F. [default: true]\n"
-        << "  --calcStrainTensors           Compute strain tensors. [default: true]\n"
-        << "  --calcD2min                   Compute D²min (nonaffine displacement). [default: true]\n"
+        << "  --eliminate_cell_deformation    Eliminate cell deformation. [default: false]\n"
+        << "  --assume_unwrapped             Assume unwrapped coordinates. [default: false]\n"
+        << "  --calc_deformation_gradient     Compute deformation gradient F. [default: true]\n"
+        << "  --calc_strain_tensors           Compute strain tensors. [default: true]\n"
+        << "  --calc_d2min                   Compute D²min (nonaffine displacement). [default: true]\n"
         << "  --threads <int>               Max worker threads (TBB/OMP). [default: auto]\n";
     printHelpOption();
 }
@@ -78,11 +78,11 @@ int main(int argc, char* argv[]) {
     }
     
     analyzer.setOptions(
-        getBool(opts, "--eliminateCellDeformation", false),
-        getBool(opts, "--assumeUnwrapped", false),
-        getBool(opts, "--calcDeformationGradient", true),
-        getBool(opts, "--calcStrainTensors", true),
-        getBool(opts, "--calcD2min", true)
+        getBool(opts, "--eliminate_cell_deformation", false),
+        getBool(opts, "--assume_unwrapped", false),
+        getBool(opts, "--calc_deformation_gradient", true),
+        getBool(opts, "--calc_strain_tensors", true),
+        getBool(opts, "--calc_d2min", true)
     );
     
     spdlog::info("Starting atomic strain analysis...");

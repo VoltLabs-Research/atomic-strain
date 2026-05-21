@@ -64,10 +64,10 @@ atomic-strain <lammps_file> [output_base] [options]
 | `[output_base]` | No | Base path for output files. | derived from input |
 | `--cutoff <float>` | No | Cutoff radius for neighbor search. | `3.0` |
 | `--reference <file>` | No | Reference LAMMPS dump file. If omitted, the current frame is used. | current frame |
-| `--eliminateCellDeformation` | No | Eliminate cell deformation before computing strain. | `false` |
-| `--assumeUnwrapped` | No | Assume coordinates are already unwrapped. | `false` |
-| `--calcDeformationGradient` | No | Compute deformation gradient `F`. | `true` |
-| `--calcStrainTensors` | No | Compute strain tensors. | `true` |
-| `--calcD2min` | No | Compute `D²min`. | `true` |
+| `--eliminate_cell_deformation` | No | Eliminate cell deformation before computing strain. | `false` |
+| `--assume_unwrapped` | No | Assume coordinates are already unwrapped. | `false` |
+| `--calc_deformation_gradient` | No | Compute deformation gradient `F`. | `true` |
+| `--calc_strain_tensors` | No | Compute strain tensors. | `true` |
+| `--calc_d2min` | No | Compute `D²min`. | `true` |
 | `--threads <int>` | No | Maximum worker threads. | auto |
 | `--help` | No | Print CLI help. | |
