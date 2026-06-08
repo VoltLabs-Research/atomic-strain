@@ -1,6 +1,6 @@
 {
   "name": "@voltlabs/atomic-strain",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "kind": "workflow",
   "publisher": "voltlabs",
   "description": "Computes atomic strain metrics (deformation gradient, strain tensors, and D²min) relative to a reference configuration.",
