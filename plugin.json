@@ -133,7 +133,7 @@
           "exposure": {
             "name": "Atomic Strain",
             "icon": "HiCube",
-            "results": "atomic_strain.msgpack",
+            "results": "atomic_strain.parquet",
             "iterable": ""
           }
         }
@@ -149,7 +149,7 @@
           "exposure": {
             "name": "Atomic Strain Model",
             "icon": "HiCube",
-            "results": "atoms.msgpack",
+            "results": "atoms.parquet",
             "iterable": ""
           }
         }
