@@ -80,30 +80,23 @@ VOLT_PLUGIN_MAIN(descriptor,
         };
 
         if (!outputBase.empty()) {
-            const int fixedExtra = 3;
-            const int strainExtra = strainProp ? 1 : 0;
-            const int defgradExtra = defgrad ? 1 : 0;
-            const int d2minExtra = D2minProp ? 1 : 0;
-
-            // Same field set drives both the AtomisticExporter atoms and the
-            // per-atom-properties coloring array. Using perAtomFieldWriter keeps
-            // per-atom-properties focused on the strain quantities (no generic
-            // structure_id/structure_name/cluster_id base).
-            auto strainFieldWriter = [&](MsgpackWriter& w, std::size_t i, int& extraCount) {
-                extraCount = fixedExtra + strainExtra + defgradExtra + d2minExtra;
-                w.write_key("shear_strain"); w.write_double(shear ? shear->getDouble(i) : 0.0);
-                w.write_key("volumetric_strain"); w.write_double(volumetric ? volumetric->getDouble(i) : 0.0);
-                w.write_key("invalid"); w.write_bool(invalid ? (invalid->getInt(i) != 0) : false);
+            // Per-atom strain columns surfaced for coloring/filtering.
+            auto strainColumnWriter = [&](ColumnarAtomWriter& w, std::size_t i) {
+                w.field("shear_strain", shear ? shear->getDouble(i) : 0.0);
+                w.field("volumetric_strain", volumetric ? volumetric->getDouble(i) : 0.0);
+                w.field("invalid", invalid ? (invalid->getInt(i) != 0) : false);
                 if (strainProp) {
-                    w.write_key("strain_tensor"); w.write_array_header(6);
-                    for (int c = 0; c < 6; ++c) w.write_double(strainProp->getDoubleComponent(i, c));
+                    std::vector<double> tensor(6);
+                    for (int c = 0; c < 6; ++c) tensor[c] = strainProp->getDoubleComponent(i, c);
+                    w.field("strain_tensor", tensor);
                 }
                 if (defgrad) {
-                    w.write_key("deformation_gradient"); w.write_array_header(9);
-                    for (int c = 0; c < 9; ++c) w.write_double(defgrad->getDoubleComponent(i, c));
+                    std::vector<double> grad(9);
+                    for (int c = 0; c < 9; ++c) grad[c] = defgrad->getDoubleComponent(i, c);
+                    w.field("deformation_gradient", grad);
                 }
                 if (D2minProp) {
-                    w.write_key("D2min"); w.write_double(D2minProp->getDouble(i));
+                    w.field("D2min", D2minProp->getDouble(i));
                 }
             };
 
@@ -113,8 +106,7 @@ VOLT_PLUGIN_MAIN(descriptor,
                     return (invalid && invalid->getInt(i) != 0)
                         ? std::string("INVALID") : std::string("VALID");
                 },
-                .atomFieldWriter = strainFieldWriter,
-                .perAtomFieldWriter = strainFieldWriter
+                .perAtomColumnWriter = strainColumnWriter
             });
         }
 
