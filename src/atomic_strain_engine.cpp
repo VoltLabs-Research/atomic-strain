@@ -1,5 +1,6 @@
 #include <volt/atomic_strain_engine.h>
 #include <volt/analysis/cutoff_neighbor_finder.h>
+#include <volt/math/affine_decomposition.h>
 
 #include <cmath>
 #include <numeric>
@@ -24,7 +25,8 @@ AtomicStrainModifier::AtomicStrainEngine::AtomicStrainEngine(
     bool assumeUnwrappedCoordinates,
     bool calculateDeformationGradients,
     bool calculateStrainTensors,
-    bool calculateNonaffineSquaredDisplacements
+    bool calculateNonaffineSquaredDisplacements,
+    bool calculatePolarDecomposition
 )
     : _positions(positions)
     , _refPositions(refPositions)
@@ -39,7 +41,8 @@ AtomicStrainModifier::AtomicStrainEngine::AtomicStrainEngine(
     , _assumeUnwrappedCoordinates(assumeUnwrappedCoordinates)
     , _calculateDeformationGradients(calculateDeformationGradients)
     , _calculateStrainTensors(calculateStrainTensors)
-    , _calculateNonaffineSquaredDisplacements(calculateNonaffineSquaredDisplacements){
+    , _calculateNonaffineSquaredDisplacements(calculateNonaffineSquaredDisplacements)
+    , _calculatePolarDecomposition(calculatePolarDecomposition){
     _numInvalidParticles.store(0, std::memory_order_relaxed);
 }
 
@@ -114,6 +117,14 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
         _nonaffineSquaredDisplacements = std::make_shared<ParticleProperty>(n, DataType::Double, 1, 0, true);
     }else{
         _nonaffineSquaredDisplacements.reset();
+    }
+
+    if(_calculatePolarDecomposition && _calculateDeformationGradients){
+        _rotationTensors = std::make_shared<ParticleProperty>(n, DataType::Double, 9, 0, true);
+        _stretchTensors  = std::make_shared<ParticleProperty>(n, DataType::Double, 9, 0, true);
+    }else{
+        _rotationTensors.reset();
+        _stretchTensors.reset();
     }
 
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, n),
@@ -193,6 +204,13 @@ bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
             _nonaffineSquaredDisplacements->setDouble(particleIndex, 0.0);
         }
 
+        if(_rotationTensors){
+            for(int c = 0; c < 9; ++c) _rotationTensors->setDoubleComponent(particleIndex, c, 0.0);
+        }
+        if(_stretchTensors){
+            for(int c = 0; c < 9; ++c) _stretchTensors->setDoubleComponent(particleIndex, c, 0.0);
+        }
+
         _shearStrains->setDouble(particleIndex, 0.0);
         _volumetricStrains->setDouble(particleIndex, 0.0);
         return false;
@@ -264,6 +282,30 @@ bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
     _volumetricStrains->setDouble(particleIndex, volumetricStrain);
 
     _invalidParticles->setInt(particleIndex, 0);
+
+    // Polar decomposition F = R * U via AffineDecomposition (the ecosystem's
+    // existing polar_decomp wrapper). R is extracted as a rotation quaternion,
+    // then U = R^T * F.
+    if(_rotationTensors && _stretchTensors){
+        AffineTransformation tm(
+            F(0,0), F(0,1), F(0,2),
+            F(1,0), F(1,1), F(1,2),
+            F(2,0), F(2,1), F(2,2)
+        );
+        AffineDecomposition decomp(tm);
+        Matrix3 R = Matrix3::rotation(decomp.rotation);
+        // U = R^T * F  (right stretch)
+        Matrix3 Rt = R.transposed();
+        Matrix3 U = Rt * F;
+
+        for(int c = 0; c < 3; ++c){
+            for(int r = 0; r < 3; ++r){
+                _rotationTensors->setDoubleComponent(particleIndex, c*3 + r, R(r,c));
+                _stretchTensors->setDoubleComponent(particleIndex,  c*3 + r, U(r,c));
+            }
+        }
+    }
+
     return true;
 }
 

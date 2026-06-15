@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "kind": "workflow",
   "publisher": "voltlabs",
-  "description": "Computes atomic strain metrics (deformation gradient, strain tensors, and D²min) relative to a reference configuration.",
+  "description": "Computes atomic strain metrics (deformation gradient, strain tensors, D²min, and polar decomposition R/U tensors) relative to a reference configuration.",
   "license": "MIT",
   "homepage": "https://github.com/voltlabs-research/atomic-strain",
   "repository": {
@@ -19,7 +19,7 @@
     "darwin-arm64",
     "windows-x86_64"
   ],
-  "coretoolkit": "1.0.0",
+  "coretoolkit": "2.0.0",
   "files": [
     "plugin.json",
     "scripts",

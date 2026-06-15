@@ -28,10 +28,19 @@ public:
 			bool assumeUnwrappedCoordinates,
 			bool calculateDeformationGradients,
 			bool calculateStrainTensors,
-			bool calculateNonaffineSquaredDisplacements
+			bool calculateNonaffineSquaredDisplacements,
+			bool calculatePolarDecomposition = false
 		);
 
 		void perform();
+
+		std::shared_ptr<Particles::ParticleProperty> rotationTensors() const{
+			return _rotationTensors;
+		}
+
+		std::shared_ptr<Particles::ParticleProperty> stretchTensors() const{
+			return _stretchTensors;
+		}
 
 		std::shared_ptr<Particles::ParticleProperty> shearStrains() const{
 			return _shearStrains;
@@ -106,6 +115,7 @@ public:
 		bool _calculateDeformationGradients;
 		bool _calculateStrainTensors;
 		bool _calculateNonaffineSquaredDisplacements;
+		bool _calculatePolarDecomposition;
 
 		std::shared_ptr<Particles::ParticleProperty> _shearStrains;
 		std::shared_ptr<Particles::ParticleProperty> _volumetricStrains;
@@ -113,6 +123,8 @@ public:
 		std::shared_ptr<Particles::ParticleProperty> _invalidParticles;
 		std::shared_ptr<Particles::ParticleProperty> _strainTensors;
 		std::shared_ptr<Particles::ParticleProperty> _deformationGradients;
+		std::shared_ptr<Particles::ParticleProperty> _rotationTensors;
+		std::shared_ptr<Particles::ParticleProperty> _stretchTensors;
 
 		std::atomic<std::size_t> _numInvalidParticles{0};
 	};
