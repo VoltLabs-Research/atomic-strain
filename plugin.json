@@ -73,6 +73,12 @@
                 "type": "boolean",
                 "label": "Calc D2min",
                 "default": true
+              },
+              {
+                "argument": "calc_polar_decomp",
+                "type": "boolean",
+                "label": "Calc Polar Decomposition (R and U tensors)",
+                "default": true
               }
             ]
           }
@@ -150,7 +156,17 @@
             "name": "Atomic Strain Model",
             "icon": "HiCube",
             "results": "atoms.parquet",
-            "iterable": ""
+            "iterable": "",
+            "properties": [
+              { "key": "shear_strain", "label": "Shear Strain", "type": "double" },
+              { "key": "volumetric_strain", "label": "Volumetric Strain", "type": "double" },
+              { "key": "D2min", "label": "D²min (Nonaffine Displacement)", "type": "double" },
+              { "key": "strain_tensor", "label": "Strain Tensor (6 components)", "type": "list<double>" },
+              { "key": "deformation_gradient", "label": "Deformation Gradient (3×3)", "type": "list<double>" },
+              { "key": "rotation_tensor", "label": "Rotation Tensor (3×3)", "type": "list<double>" },
+              { "key": "stretch_tensor", "label": "Stretch Tensor (3×3)", "type": "list<double>" },
+              { "key": "invalid", "label": "Invalid Particle", "type": "bool" }
+            ]
           }
         }
       },
