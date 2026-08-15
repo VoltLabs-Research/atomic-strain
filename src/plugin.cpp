@@ -84,7 +84,6 @@ VOLT_PLUGIN_MAIN(descriptor,
         };
 
         if (!outputBase.empty()) {
-            // Per-atom strain columns surfaced for coloring/filtering.
             auto strainColumnWriter = [&](ColumnarAtomWriter& w, std::size_t i) {
                 w.field("shear_strain", shear ? shear->getDouble(i) : 0.0);
                 w.field("volumetric_strain", volumetric ? volumetric->getDouble(i) : 0.0);

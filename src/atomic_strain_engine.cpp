@@ -283,9 +283,6 @@ bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
 
     _invalidParticles->setInt(particleIndex, 0);
 
-    // Polar decomposition F = R * U via AffineDecomposition (the ecosystem's
-    // existing polar_decomp wrapper). R is extracted as a rotation quaternion,
-    // then U = R^T * F.
     if(_rotationTensors && _stretchTensors){
         AffineTransformation tm(
             F(0,0), F(0,1), F(0,2),
@@ -294,7 +291,6 @@ bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
         );
         AffineDecomposition decomp(tm);
         Matrix3 R = Matrix3::rotation(decomp.rotation);
-        // U = R^T * F  (right stretch)
         Matrix3 Rt = R.transposed();
         Matrix3 U = Rt * F;
 
