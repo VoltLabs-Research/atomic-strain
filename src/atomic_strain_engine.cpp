@@ -1,7 +1,9 @@
 #include <volt/atomic_strain_engine.h>
 #include <volt/analysis/cutoff_neighbor_finder.h>
+#include <volt/core/progress.h>
 #include <volt/math/affine_decomposition.h>
 
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <map>
@@ -54,6 +56,7 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
         assert(_identifiers->size()    == positions()->size());
         assert(_refIdentifiers->size() == refPositions()->size());
 
+        const Stopwatch mappingTimer;
         std::map<int,int> refMap;
         int index = 0;
         for(int id : _refIdentifiers->constIntRange()){
@@ -82,6 +85,15 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
             auto it = currentMap.find(*id);
             mappedIndex = (it != currentMap.end()) ? it->second : -1;
             ++id;
+        }
+
+        const std::size_t unmatched = static_cast<std::size_t>(
+            std::count(currentToRefIndexMap.begin(), currentToRefIndexMap.end(), -1));
+        spdlog::info("Matched {} atoms to the reference by identifier in {}",
+            currentToRefIndexMap.size() - unmatched, mappingTimer.elapsed());
+        if(unmatched > 0){
+            spdlog::warn("{} atoms ({:.1f}%) have no counterpart in the reference; they are marked invalid",
+                unmatched, percentOf(unmatched, currentToRefIndexMap.size()));
         }
     }else{
         if(positions()->size() != refPositions()->size())
