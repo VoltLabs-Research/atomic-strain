@@ -27,6 +27,8 @@ VOLT_PLUGIN_MAIN(descriptor,
         using namespace Volt::Particles;
 
         const LammpsParser::Frame& refFrame = refFramePtr ? *refFramePtr : frame;
+        if (!refFramePtr)
+            spdlog::warn("No reference frame given (--reference); the current frame is its own reference, so every strain is zero");
 
         auto positions = FrameAdapter::createPositionPropertyShared(frame);
         if (!positions) return AnalysisResult::failure("Failed to create position property");
