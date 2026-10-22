@@ -156,7 +156,13 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
             progress.advance(r.size());
         });
 
+    const std::size_t invalid = numInvalidParticles();
     spdlog::info("Atomic strain computed for {} atoms in {}", n, progress.elapsed());
+    if(invalid > 0){
+        spdlog::warn(
+            "{} atoms ({:.1f}%) have fewer than 3 reference neighbors within the cutoff or a degenerate neighborhood; their strain is zero",
+            invalid, percentOf(invalid, n));
+    }
 }
 
 bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
