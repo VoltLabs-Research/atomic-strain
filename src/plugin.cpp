@@ -75,6 +75,9 @@ VOLT_PLUGIN_MAIN(descriptor,
             if (volumetric) totalVolumetric += volumetric->getDouble(i);
             ++count;
         }
+        if (count > 0)
+            spdlog::info("Shear strain (von Mises): mean {:.6f}, max {:.6f}; volumetric strain: mean {:.6f}",
+                totalShear / count, maxShear, totalVolumetric / count);
 
         nlohmann::json result;
         result["main_listing"] = {
