@@ -104,8 +104,10 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
 
     _simCellRef.setPbcFlags(_simCell.pbcFlags());
 
+    const Stopwatch neighborTimer;
     CutoffNeighborFinder neighborFinder;
     if(!neighborFinder.prepare(_cutoff, refPositions(), refCell())) return;
+    spdlog::info("Reference neighbor search ready in {} (cutoff {:.3f})", neighborTimer.elapsed(), _cutoff);
 
     const std::size_t n = positions()->size();
 
@@ -139,8 +141,10 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
         _stretchTensors.reset();
     }
 
+    spdlog::info("Computing atomic strain for {} atoms...", n);
+    ProgressReporter progress("Computing atomic strain", n);
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, n),
-        [this, &neighborFinder, &refToCurrentIndexMap, &currentToRefIndexMap](const tbb::blocked_range<std::size_t>& r){
+        [this, &neighborFinder, &refToCurrentIndexMap, &currentToRefIndexMap, &progress](const tbb::blocked_range<std::size_t>& r){
             for(std::size_t i = r.begin(); i < r.end(); ++i){
                 if(!computeStrain(i,
                                   neighborFinder,
@@ -149,7 +153,10 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
                     _numInvalidParticles.fetch_add(1, std::memory_order_relaxed);
                 }
             }
+            progress.advance(r.size());
         });
+
+    spdlog::info("Atomic strain computed for {} atoms in {}", n, progress.elapsed());
 }
 
 bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
