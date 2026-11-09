@@ -52,6 +52,8 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
     std::vector<int> currentToRefIndexMap(positions()->size());
     std::vector<int> refToCurrentIndexMap(refPositions()->size());
 
+    // Matching atoms to the reference by identifier, the reference neighbor search, then the strain pass.
+    ProgressSteps steps({_identifiers && _refIdentifiers ? 2.0 : 0.0, 1.0, 3.0});
     if(_identifiers && _refIdentifiers){
         assert(_identifiers->size()    == positions()->size());
         assert(_refIdentifiers->size() == refPositions()->size());
@@ -103,11 +105,13 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
     }
 
     _simCellRef.setPbcFlags(_simCell.pbcFlags());
+    steps.next();
 
     const Stopwatch neighborTimer;
     CutoffNeighborFinder neighborFinder;
     if(!neighborFinder.prepare(_cutoff, refPositions(), refCell())) return;
     spdlog::info("Reference neighbor search ready in {} (cutoff {:.3f})", neighborTimer.elapsed(), _cutoff);
+    steps.next();
 
     const std::size_t n = positions()->size();
 

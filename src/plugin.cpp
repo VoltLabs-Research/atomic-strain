@@ -3,6 +3,7 @@
 #include <volt/atomic_strain_engine.h>
 #include <volt/core/frame_adapter.h>
 #include <volt/core/analysis_result.h>
+#include <volt/core/progress.h>
 
 static const Volt::Plugin::PluginDescriptor descriptor{
     .name = "volt-atomic-strain",
@@ -55,7 +56,10 @@ VOLT_PLUGIN_MAIN(descriptor,
             cutoff, eliminateCell, assumeUnwrapped,
             calcDefGrad, calcStrain, calcD2min, calcPolar
         );
+        // The strain engine, then the outputs with their per-atom tensor columns.
+        ProgressSteps steps({2.0, 3.0});
         engine.perform();
+        steps.next();
 
         auto shear = engine.shearStrains();
         auto volumetric = engine.volumetricStrains();
