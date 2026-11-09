@@ -109,7 +109,9 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
 
     const Stopwatch neighborTimer;
     CutoffNeighborFinder neighborFinder;
-    if(!neighborFinder.prepare(_cutoff, refPositions(), refCell())) return;
+    if(!neighborFinder.prepare(_cutoff, refPositions(), refCell()))
+        throw std::runtime_error(fmt::format(
+            "Could not prepare the reference neighbor search with cutoff {:.3f}; check the cutoff and the reference cell.", _cutoff));
     spdlog::info("Reference neighbor search ready in {} (cutoff {:.3f})", neighborTimer.elapsed(), _cutoff);
     steps.next();
 
