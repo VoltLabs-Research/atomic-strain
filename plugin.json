@@ -12,6 +12,7 @@
           "modifier": {
             "name": "Atomic Strain",
             "key": "atomic-strain",
+            "category": "Deformation",
             "icon": "HiCube",
             "author": "Rodolfo Herrera",
             "license": "MIT",
