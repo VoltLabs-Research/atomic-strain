@@ -5,6 +5,7 @@ Computes per-atom strain (deformation gradient, strain tensors, D²min) relative
 ## Install
 
 ```bash
+npm install -g @voltstack/vpm
 vpm install @voltlabs/atomic-strain
 ```
 
