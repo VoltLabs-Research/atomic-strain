@@ -1,6 +1,7 @@
 #include <volt/plugin/plugin_main.h>
 #include <volt/plugin/output_serializer.h>
 #include <volt/atomic_strain_engine.h>
+#include <volt/atomic_strain_log.h>
 #include <volt/core/frame_adapter.h>
 #include <volt/core/analysis_result.h>
 #include <volt/core/progress.h>
@@ -27,15 +28,11 @@ VOLT_PLUGIN_MAIN(descriptor,
         using namespace Volt;
         using namespace Volt::Particles;
 
-        const LammpsParser::Frame& refFrame = refFramePtr ? *refFramePtr : frame;
-        if (!refFramePtr)
-            spdlog::warn("No reference frame given (--reference); the current frame is its own reference, so every strain is zero");
+        const LammpsParser::Frame& refFrame = *refFramePtr;
+        AtomicStrainLog log;
 
         auto positions = FrameAdapter::createPositionPropertyShared(frame);
         if (!positions) return AnalysisResult::failure("Failed to create position property");
-
-        if (frame.natoms != refFrame.natoms)
-            return AnalysisResult::failure("Atom count mismatch between current and reference frames");
 
         auto refPositions = FrameAdapter::createPositionPropertyShared(refFrame);
         auto identifiers = FrameAdapter::createIdentifierProperty(frame);
@@ -56,9 +53,11 @@ VOLT_PLUGIN_MAIN(descriptor,
             cutoff, eliminateCell, assumeUnwrapped,
             calcDefGrad, calcStrain, calcD2min, calcPolar
         );
-        // The strain engine, then the outputs with their per-atom tensor columns.
-        ProgressSteps steps({2.0, 3.0});
-        engine.perform();
+        ProgressSteps steps({
+            {"Computing atomic strain", 2.0},
+            {"Writing outputs", 3.0},
+        });
+        engine.perform(log);
         steps.next();
 
         auto shear = engine.shearStrains();
@@ -71,25 +70,25 @@ VOLT_PLUGIN_MAIN(descriptor,
         auto stretchTensors = engine.stretchTensors();
 
         const std::size_t n = frame.positions.size();
-        double totalShear = 0.0, totalVolumetric = 0.0, maxShear = 0.0;
-        int count = 0;
-
+        AtomicStrainModifier::StrainSummary summary;
         for (std::size_t i = 0; i < n; ++i) {
-            if (shear) { double s = shear->getDouble(i); totalShear += s; if (s > maxShear) maxShear = s; }
-            if (volumetric) totalVolumetric += volumetric->getDouble(i);
-            ++count;
+            if (shear) {
+                double s = shear->getDouble(i);
+                summary.totalShear += s;
+                if (s > summary.maxShear) summary.maxShear = s;
+            }
+            if (volumetric) summary.totalVolumetric += volumetric->getDouble(i);
+            ++summary.count;
         }
-        if (count > 0)
-            spdlog::info("Shear strain (von Mises): mean {:.6f}, max {:.6f}; volumetric strain: mean {:.6f}",
-                totalShear / count, maxShear, totalVolumetric / count);
+        log.dump(summary);
 
         nlohmann::json result;
         result["main_listing"] = {
             {"cutoff", cutoff},
             {"num_invalid_particles", engine.numInvalidParticles()},
-            {"average_shear_strain", count > 0 ? totalShear / count : 0.0},
-            {"average_volumetric_strain", count > 0 ? totalVolumetric / count : 0.0},
-            {"max_shear_strain", maxShear}
+            {"average_shear_strain", summary.meanShear()},
+            {"average_volumetric_strain", summary.meanVolumetric()},
+            {"max_shear_strain", summary.maxShear}
         };
 
         if (!outputBase.empty()) {

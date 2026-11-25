@@ -1,13 +1,12 @@
 #include <volt/atomic_strain_engine.h>
 #include <volt/analysis/cutoff_neighbor_finder.h>
+#include <volt/analysis/reference_configuration.h>
+#include <volt/atomic_strain_log.h>
 #include <volt/core/progress.h>
 #include <volt/math/affine_decomposition.h>
 
-#include <algorithm>
-#include <cmath>
-#include <numeric>
-#include <map>
 #include <cassert>
+#include <cmath>
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 
@@ -48,71 +47,27 @@ AtomicStrainModifier::AtomicStrainEngine::AtomicStrainEngine(
     _numInvalidParticles.store(0, std::memory_order_relaxed);
 }
 
-void AtomicStrainModifier::AtomicStrainEngine::perform(){
-    std::vector<int> currentToRefIndexMap(positions()->size());
-    std::vector<int> refToCurrentIndexMap(refPositions()->size());
-
-    // Matching atoms to the reference by identifier, the reference neighbor search, then the strain pass.
-    ProgressSteps steps({_identifiers && _refIdentifiers ? 2.0 : 0.0, 1.0, 3.0});
-    if(_identifiers && _refIdentifiers){
-        assert(_identifiers->size()    == positions()->size());
-        assert(_refIdentifiers->size() == refPositions()->size());
-
-        const Stopwatch mappingTimer;
-        std::map<int,int> refMap;
-        int index = 0;
-        for(int id : _refIdentifiers->constIntRange()){
-            if(!refMap.insert(std::make_pair(id,index)).second)
-                throw std::runtime_error("Particles with duplicate identifiers detected in reference configuration.");
-            ++index;
-        }
-
-        std::map<int,int> currentMap;
-        index = 0;
-        for(int id : _identifiers->constIntRange()){
-            if(!currentMap.insert(std::make_pair(id,index)).second)
-                throw std::runtime_error("Particles with duplicate identifiers detected in current configuration.");
-            ++index;
-        }
-
-        const int* id = _identifiers->constDataInt();
-        for(auto& mappedIndex : currentToRefIndexMap){
-            auto it = refMap.find(*id);
-            mappedIndex = (it != refMap.end()) ? it->second : -1;
-            ++id;
-        }
-
-        id = _refIdentifiers->constDataInt();
-        for(auto& mappedIndex : refToCurrentIndexMap){
-            auto it = currentMap.find(*id);
-            mappedIndex = (it != currentMap.end()) ? it->second : -1;
-            ++id;
-        }
-
-        const std::size_t unmatched = static_cast<std::size_t>(
-            std::count(currentToRefIndexMap.begin(), currentToRefIndexMap.end(), -1));
-        spdlog::info("Matched {} atoms to the reference by identifier in {}",
-            currentToRefIndexMap.size() - unmatched, mappingTimer.elapsed());
-        if(unmatched > 0){
-            spdlog::warn("{} atoms ({:.1f}%) have no counterpart in the reference; they are marked invalid",
-                unmatched, percentOf(unmatched, currentToRefIndexMap.size()));
-        }
-    }else{
-        if(positions()->size() != refPositions()->size())
-            throw std::runtime_error("Cannot calculate displacements. Numbers of particles in reference configuration and current configuration do not match.");
-        std::iota(refToCurrentIndexMap.begin(),   refToCurrentIndexMap.end(),   0);
-        std::iota(currentToRefIndexMap.begin(),   currentToRefIndexMap.end(),   0);
-    }
+void AtomicStrainModifier::AtomicStrainEngine::perform(AtomicStrainLog& log){
+    ProgressSteps steps({
+        {"Matching atoms to the reference", 2.0, _identifiers && _refIdentifiers},
+        {"Preparing the reference neighbor search", 1.0},
+        {"Computing atomic strain", 3.0},
+    });
+    const ReferenceMatch match = ReferenceMatch::build(
+        _identifiers, _refIdentifiers, positions()->size(), refPositions()->size(), ReferenceMatch::MissingAtoms::Allowed
+    );
+    log.dump(match);
+    const std::vector<std::size_t>& currentToRefIndexMap = match.currentToReference;
+    const std::vector<std::size_t>& refToCurrentIndexMap = match.referenceToCurrent;
 
     _simCellRef.setPbcFlags(_simCell.pbcFlags());
     steps.next();
 
-    const Stopwatch neighborTimer;
     CutoffNeighborFinder neighborFinder;
     if(!neighborFinder.prepare(_cutoff, refPositions(), refCell()))
         throw std::runtime_error("Could not prepare the reference neighbor search with cutoff "
             + std::to_string(_cutoff) + "; check the cutoff and the reference cell.");
-    spdlog::info("Reference neighbor search ready in {} (cutoff {:.3f})", neighborTimer.elapsed(), _cutoff);
+    log.dump(neighborFinder);
     steps.next();
 
     const std::size_t n = positions()->size();
@@ -147,7 +102,6 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
         _stretchTensors.reset();
     }
 
-    spdlog::info("Computing atomic strain for {} atoms...", n);
     ProgressReporter progress("Computing atomic strain", n);
     tbb::parallel_for(tbb::blocked_range<std::size_t>(0, n),
         [this, &neighborFinder, &refToCurrentIndexMap, &currentToRefIndexMap, &progress](const tbb::blocked_range<std::size_t>& r){
@@ -161,35 +115,28 @@ void AtomicStrainModifier::AtomicStrainEngine::perform(){
             }
             progress.advance(r.size());
         });
-
-    const std::size_t invalid = numInvalidParticles();
-    spdlog::info("Atomic strain computed for {} atoms in {}", n, progress.elapsed());
-    if(invalid > 0){
-        spdlog::warn(
-            "{} atoms ({:.1f}%) have fewer than 3 reference neighbors within the cutoff or a degenerate neighborhood; their strain is zero",
-            invalid, percentOf(invalid, n));
-    }
+    log.dump(*this);
 }
 
 bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
     std::size_t                 particleIndex,
     CutoffNeighborFinder&       neighborFinder,
-    const std::vector<int>&     refToCurrentIndexMap,
-    const std::vector<int>&     currentToRefIndexMap){
+    const std::vector<std::size_t>& refToCurrentIndexMap,
+    const std::vector<std::size_t>& currentToRefIndexMap){
     Matrix_3<double> V = Matrix_3<double>::Zero();
     Matrix_3<double> W = Matrix_3<double>::Zero();
     int numNeighbors = 0;
 
-    int particleIndexReference = currentToRefIndexMap[particleIndex];
+    const std::size_t particleIndexReference = currentToRefIndexMap[particleIndex];
 
-    if(particleIndexReference != -1){
+    if(particleIndexReference != ReferenceMatch::kNoCounterpart){
         const Point3 x = positions()->getPoint3(particleIndex);
 
         for(CutoffNeighborFinder::Query neighQuery(neighborFinder, particleIndexReference);
             !neighQuery.atEnd(); neighQuery.next()){
             const Vector3& r0 = neighQuery.delta();
-            int neighborIndexCurrent = refToCurrentIndexMap[neighQuery.current()];
-            if(neighborIndexCurrent == -1) continue;
+            const std::size_t neighborIndexCurrent = refToCurrentIndexMap[neighQuery.current()];
+            if(neighborIndexCurrent == ReferenceMatch::kNoCounterpart) continue;
 
             Vector3 r = positions()->getPoint3(neighborIndexCurrent) - x;
             Vector3 sr = _currentSimCellInv * r; 
@@ -273,8 +220,8 @@ bool AtomicStrainModifier::AtomicStrainEngine::computeStrain(
             !neighQuery.atEnd(); neighQuery.next())
         {
             const Vector3& r0 = neighQuery.delta();
-            int neighborIndexCurrent = refToCurrentIndexMap[neighQuery.current()];
-            if(neighborIndexCurrent == -1) continue;
+            const std::size_t neighborIndexCurrent = refToCurrentIndexMap[neighQuery.current()];
+            if(neighborIndexCurrent == ReferenceMatch::kNoCounterpart) continue;
 
             Vector3 r = positions()->getPoint3(neighborIndexCurrent) - x;
             Vector3 sr = _currentSimCellInv * r;

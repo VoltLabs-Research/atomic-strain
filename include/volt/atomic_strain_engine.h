@@ -11,9 +11,21 @@
 namespace Volt{
 
 class CutoffNeighborFinder;
+class AtomicStrainLog;
 
 class AtomicStrainModifier{
 public:
+	// The strain over the whole frame, for the summary table and the log.
+	struct StrainSummary{
+		int count = 0;
+		double totalShear = 0.0;
+		double maxShear = 0.0;
+		double totalVolumetric = 0.0;
+
+		double meanShear() const{ return count > 0 ? totalShear / count : 0.0; }
+		double meanVolumetric() const{ return count > 0 ? totalVolumetric / count : 0.0; }
+	};
+
 	class AtomicStrainEngine{
 	public:
 		AtomicStrainEngine(
@@ -32,7 +44,7 @@ public:
 			bool calculatePolarDecomposition = false
 		);
 
-		void perform();
+		void perform(AtomicStrainLog& log);
 
 		std::shared_ptr<Particles::ParticleProperty> rotationTensors() const{
 			return _rotationTensors;
@@ -94,8 +106,8 @@ public:
 		bool computeStrain(
 			std::size_t particleIndex,
 			CutoffNeighborFinder& neighborFinder,
-			const std::vector<int>& refToCurrentIndexMap,
-			const std::vector<int>& currentToRefIndexMap
+			const std::vector<std::size_t>& refToCurrentIndexMap,
+			const std::vector<std::size_t>& currentToRefIndexMap
 		);
 
 		Particles::ParticleProperty* _positions;

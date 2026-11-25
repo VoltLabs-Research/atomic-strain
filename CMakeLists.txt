@@ -7,6 +7,6 @@ if(NOT TARGET coretoolkit::coretoolkit)
 endif()
 
 volt_add_plugin(atomic-strain
-    SOURCES src/atomic_strain_engine.cpp
+    SOURCES src/atomic_strain_engine.cpp src/atomic_strain_log.cpp
     MAIN_SOURCE src/plugin.cpp
 )
